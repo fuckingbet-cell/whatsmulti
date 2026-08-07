@@ -11,8 +11,11 @@
     "dist": "npm run build && electron-builder"
   },
   "dependencies": {
+    "canvas": "^3.2.3",
     "electron-store": "^8.2.0",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
@@ -25,10 +28,22 @@
   "build": {
     "appId": "com.multiwhatsapp.desktop",
     "productName": "Multi-WhatsApp",
-    "files": ["dist/**/*", "electron/**/*", "node_modules/**/*"],
-    "directories": { "buildResources": "assets" },
-    "win": { "target": "nsis" },
-    "mac": { "target": "dmg" },
-    "linux": { "target": "AppImage" }
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "node_modules/**/*"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
   }
 }
