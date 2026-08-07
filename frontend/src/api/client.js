@@ -1,4 +1,4 @@
-const API = 'https://your-hostinger-domain.com/api'; // ← Replace with your Hostinger backend URL
+const API = import.meta.env.VITE_API_URL || 'https://your-hostinger-domain.com/api'; // ← Replace with your Hostinger backend URL
 
 export const api = {
   async req(method, path, data) {
