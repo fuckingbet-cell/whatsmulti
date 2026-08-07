@@ -66,6 +66,12 @@ ipcMain.handle('create-account', async (_, { label }) => {
   accounts.push(newAccount);
   store.set('accounts', accounts);
   broadcastAccounts(accounts);
+  
+  // Create the BrowserView immediately so WhatsApp Web starts loading
+  if (mainWindow) {
+    createViewForAccount(newAccount);
+  }
+  
   return newAccount;
 });
 
@@ -104,28 +110,45 @@ function broadcastAccounts(accounts) {
 function createViewForAccount(account) {
   if (!mainWindow || views.has(account.id)) return;
   
+  console.log('Creating BrowserView for account:', account.id, account.label);
+  
   const view = new BrowserView({
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      sandbox: false,
       partition: `persist:whatsapp-${account.id}`,
-      webSecurity: true,
+      webSecurity: false,
+      allowRunningInsecureContent: true,
+      webviewTag: true,
+      experimentalFeatures: true,
     },
   });
   
   views.set(account.id, view);
   mainWindow.addBrowserView(view);
   
-  // Set bounds (will be updated on resize)
-  updateViewBounds(account.id);
+  // Set bounds immediately
+  setTimeout(() => updateViewBounds(account.id), 100);
   
   view.webContents.loadURL('https://web.whatsapp.com');
+  console.log('Loaded URL for account:', account.id);
   
   // Listen for login state changes
   view.webContents.on('did-finish-load', () => {
+    console.log('did-finish-load for account:', account.id);
     checkLoginState(account.id);
+  });
+  
+  // Handle load errors
+  view.webContents.on('did-fail-load', (e, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    console.log(`WebView load failed for ${account.id}:`, errorCode, errorDescription);
+  });
+  
+  // Handle crash
+  view.webContents.on('crashed', () => {
+    console.log('BrowserView crashed for account:', account.id);
   });
   
   // Periodic check
@@ -197,19 +220,26 @@ ipcMain.on('account-status', (_, { id, status, avatar, phone }) => {
 
 // When active tab changes, create/show the view
 ipcMain.on('set-active-tab', (_, accountId) => {
-  views.forEach((view, id) => {
-    if (id !== accountId) {
-      // Keep all views attached but they're hidden by React
-      // Could optimize by removing non-active views
-    }
-  });
+  console.log('set-active-tab called:', accountId);
   
-  // Create view if doesn't exist
+  // First, create view if doesn't exist
   const accounts = store.get('accounts', []);
   const account = accounts.find(a => a.id === accountId);
   if (account && !views.has(accountId)) {
+    console.log('Creating view for new active tab:', accountId);
     createViewForAccount(account);
   }
+  
+  // Show/hide views based on active tab
+  views.forEach((view, id) => {
+    if (id === accountId) {
+      // Ensure bounds are correct and view is visible
+      console.log('Updating bounds for active view:', id);
+      updateViewBounds(id);
+      // BrowserView is automatically visible when added to window
+    }
+    // Other views remain attached but positioned off-screen or just not focused
+  });
   
   updateViewBounds(accountId);
 });
@@ -222,12 +252,15 @@ app.on('browser-window-focus', () => {
 });
 
 app.whenReady().then(() => {
+  console.log('App ready, creating window...');
   createWindow();
   
   // Restore views for existing accounts
   const accounts = store.get('accounts', []);
+  console.log('Stored accounts:', accounts.length);
   accounts.forEach(acc => {
     if (acc.status === 'online') {
+      console.log('Restoring view for online account:', acc.id);
       createViewForAccount(acc);
     }
   });
