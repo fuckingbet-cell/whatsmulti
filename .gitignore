@@ -5,6 +5,8 @@ node_modules/
 dist/
 build/
 *.local
+*.db
+*.sqlite
 
 # Environment files
 .env
